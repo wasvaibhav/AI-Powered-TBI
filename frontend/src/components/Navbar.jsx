@@ -9,7 +9,8 @@ export default function Navbar() {
   const navLinks = [
     { name: 'Home', path: '/' },
     { name: 'About Us', path: '/about' },
-    { name: 'Advisory Chat', path: '/dashboard' },
+    { name: 'Dashboard', path: '/dashboard' },
+    { name: 'Advisory Chat', path: '/chat' },
   ];
 
   const isActive = (path) => location.pathname === path;

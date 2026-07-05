@@ -65,7 +65,7 @@ export default function Hero() {
         {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link
-            to="/dashboard"
+            to="/chat"
             className="w-full sm:w-auto px-8 py-3 bg-terracotta text-cream font-medium text-sm border border-terracotta hover:bg-terracotta-dark hover:border-terracotta-dark transition-all duration-200 shadow-sm"
           >
             Start Advisory Chat

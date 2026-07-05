@@ -1,235 +1,413 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Send, Sprout, User, ShieldAlert, Sparkles, RefreshCw, AlertTriangle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Plus, Filter, FileText, ArrowRight, X, Sprout, CheckCircle2, AlertCircle } from 'lucide-react';
+import Loader from '../components/Loader';
+import Toast from '../components/Toast';
 
 export default function Dashboard() {
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
+  const navigate = useNavigate();
+  const [advisories, setAdvisories] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const messagesEndRef = useRef(null);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Predefined quick questions for organic mountain crops
-  const promptChips = [
-    "My Rajma leaves have brown circular spots. What should I do?",
-    "Organic control for codling moth in Ramgarh apple orchards?",
-    "How to prevent storage mold in Mandua (Finger Millet)?",
-    "Traditional recipe for Dashaparni Ark bio-pest control."
-  ];
+  // New Advisory Form state
+  const [formCrop, setFormCrop] = useState('');
+  const [formQuery, setFormQuery] = useState('');
+  const [formAdvice, setFormAdvice] = useState('');
+  const [formStatus, setFormStatus] = useState('open');
+  const [formError, setFormError] = useState('');
 
-  // Scroll to bottom of chat whenever messages change
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, isLoading]);
-
-  const handleSendMessage = async (textToSend) => {
-    const text = textToSend || input.trim();
-    if (!text) return;
-
-    if (!textToSend) {
-      setInput('');
-    }
-    setError('');
-
-    // Construct the new message
-    const userMessage = { role: 'user', content: text };
-    const updatedHistory = [...messages, userMessage];
-    setMessages(updatedHistory);
+  // Fetch advisories based on current filters/search
+  const fetchAdvisories = async () => {
     setIsLoading(true);
-
+    setErrorMessage('');
     try {
-      // Send chat history to backend API
-      const response = await fetch('http://localhost:8000/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ messages: updatedHistory }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `Server responded with status ${response.status}`);
+      let url = 'http://localhost:5000/api/advisories';
+      
+      if (searchQuery.trim() !== '') {
+        url = `http://localhost:5000/api/advisories/search?q=${encodeURIComponent(searchQuery)}`;
+      } else if (statusFilter !== 'all') {
+        url = `http://localhost:5000/api/advisories/filter?status=${encodeURIComponent(statusFilter)}`;
       }
 
+      const response = await fetch(url);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Failed to fetch advisories (Status ${response.status})`);
+      }
       const data = await response.json();
-      
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: data.reply }
-      ]);
+      setAdvisories(data);
     } catch (err) {
-      console.error("Advisory Chat Error:", err);
-      setError(err.message || "Failed to contact the advisory server. Ensure your backend server is running and configured.");
+      console.error(err);
+      setErrorMessage(err.message || 'Network error: Please verify that the backend API is running on port 5000.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
+  // Trigger fetch when filter or search changes
+  useEffect(() => {
+    const delayDebounce = setTimeout(() => {
+      fetchAdvisories();
+    }, 300); // 300ms debounce for search inputs
+
+    return () => clearTimeout(delayDebounce);
+  }, [searchQuery, statusFilter]);
+
+  // Handle new advisory creation
+  const handleCreateAdvisory = async (e) => {
+    e.preventDefault();
+    setFormError('');
+
+    if (!formCrop.trim() || !formQuery.trim() || !formAdvice.trim()) {
+      setFormError('Please fill out all fields.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const payload = {
+        crop: formCrop.trim(),
+        query: formQuery.trim(),
+        advice: formAdvice.trim(),
+        status: formStatus
+      };
+
+      const response = await fetch('http://localhost:5000/api/advisories', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.detail || `Failed to create advisory (Status ${response.status})`);
+      }
+
+      const newAdvisory = await response.json();
+      
+      // Update local state list and close modal
+      setAdvisories((prev) => [newAdvisory, ...prev]);
+      setIsModalOpen(false);
+      
+      // Reset form
+      setFormCrop('');
+      setFormQuery('');
+      setFormAdvice('');
+      setFormStatus('open');
+    } catch (err) {
+      console.error(err);
+      setErrorMessage(err.message || 'Could not save the new advisory record.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const clearChat = () => {
-    setMessages([]);
-    setError('');
-  };
+  // Statistics summaries
+  const openCount = advisories.filter(a => a.status === 'open').length;
+  const resolvedCount = advisories.filter(a => a.status === 'resolved').length;
 
   return (
-    <div className="bg-cream min-h-[85vh] flex flex-col font-sans">
-      {/* Disclaimer Banner - REQUIRED */}
-      <div className="bg-terracotta/15 border-b border-terracotta/30 text-charcoal py-3 px-4 sm:px-6">
-        <div className="max-w-7xl mx-auto flex items-center justify-center space-x-2 text-xs sm:text-sm font-medium">
-          <AlertTriangle className="h-4.5 w-4.5 text-terracotta shrink-0" />
-          <span className="text-center">
-            <strong>AI guidance:</strong> Please verify with a licensed agricultural extension officer before acting on suggestions.
-          </span>
-        </div>
-      </div>
+    <div className="bg-cream min-h-[85vh] py-8 font-sans">
+      {/* Toast notifications */}
+      {errorMessage && (
+        <Toast message={errorMessage} onClose={() => setErrorMessage('')} />
+      )}
 
-      <div className="max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow flex flex-col min-h-[500px]">
-        {/* Main Header / Status */}
-        <div className="flex items-center justify-between border-b border-pine/10 pb-4 mb-6">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 border border-pine/20 bg-cream-dark/50 text-pine">
-              <Sprout className="h-5 w-5" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        {/* Header Block */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between border-b border-pine/15 pb-6 mb-8">
+          <div>
+            <h1 className="font-serif font-bold text-3xl text-pine tracking-wide">
+              Supervisor Advisories
+            </h1>
+            <p className="text-sm text-charcoal/60 mt-1">
+              Manage hill-crop advisor records, organic recommendation logs, and status audits.
+            </p>
+          </div>
+          
+          <div className="mt-4 md:mt-0">
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="inline-flex items-center space-x-2 px-5 py-2.5 bg-terracotta hover:bg-terracotta-dark text-cream border border-terracotta hover:border-terracotta-dark font-medium text-sm transition-all duration-200 shadow-sm"
+              id="add-advisory-btn"
+            >
+              <Plus className="h-4.5 w-4.5" />
+              <span>Add Advisory</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Stats Panels */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+          <div className="bg-cream-dark/30 border border-pine/15 p-6 flex items-center space-x-4">
+            <div className="p-3 bg-pine/10 text-pine rounded-none border border-pine/20">
+              <FileText className="h-6 w-6" />
             </div>
             <div>
-              <h1 className="font-serif font-bold text-xl sm:text-2xl text-pine">Advisory Chat</h1>
-              <p className="text-xs text-charcoal/60">Uttarakhand Mountain Crop Assistance</p>
+              <p className="text-xs text-charcoal/50 uppercase tracking-wider font-semibold">Total Logged</p>
+              <h3 className="font-serif font-bold text-2xl text-pine mt-0.5">{advisories.length}</h3>
             </div>
           </div>
-          {messages.length > 0 && (
-            <button
-              onClick={clearChat}
-              className="text-xs font-semibold text-charcoal/50 hover:text-terracotta transition-colors duration-200 flex items-center space-x-1"
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              <span>Reset Chat</span>
-            </button>
-          )}
+          
+          <div className="bg-cream-dark/30 border border-pine/15 p-6 flex items-center space-x-4">
+            <div className="p-3 bg-amber-500/10 text-amber-700 rounded-none border border-amber-500/20">
+              <AlertCircle className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-xs text-charcoal/50 uppercase tracking-wider font-semibold">Open Queries</p>
+              <h3 className="font-serif font-bold text-2xl text-amber-700 mt-0.5">{openCount}</h3>
+            </div>
+          </div>
+
+          <div className="bg-cream-dark/30 border border-pine/15 p-6 flex items-center space-x-4">
+            <div className="p-3 bg-emerald-500/10 text-emerald-700 rounded-none border border-emerald-500/20">
+              <CheckCircle2 className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-xs text-charcoal/50 uppercase tracking-wider font-semibold">Resolved Cases</p>
+              <h3 className="font-serif font-bold text-2xl text-emerald-700 mt-0.5">{resolvedCount}</h3>
+            </div>
+          </div>
         </div>
 
-        {/* Chat Feed */}
-        <div className="flex-grow border border-pine/15 bg-cream-dark/10 p-4 sm:p-6 min-h-[350px] max-h-[500px] overflow-y-auto flex flex-col space-y-4">
-          {messages.length === 0 ? (
-            /* Empty State */
-            <div className="my-auto text-center max-w-md mx-auto py-8">
-              <Sparkles className="h-8 w-8 text-terracotta mx-auto mb-4" />
-              <h3 className="font-serif font-bold text-lg text-pine mb-2">Welcome, Supervisor</h3>
-              <p className="text-sm text-charcoal/70 leading-relaxed mb-6">
-                Ask crop-specific queries in simple language (e.g. diagnosing apple rot, rajma pests, organic manures, or millet preservation).
+        {/* Search, Filter bar */}
+        <div className="bg-cream-dark/20 border border-pine/10 p-4 mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
+          
+          {/* Search box */}
+          <div className="relative w-full md:w-96">
+            <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-charcoal/40">
+              <Search className="h-4 w-4" />
+            </span>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                setStatusFilter('all'); // Search overrides status filter to look across all
+                setSearchQuery(e.target.value);
+              }}
+              placeholder="Search by crop, query description..."
+              className="w-full bg-cream text-charcoal text-sm py-2 pl-9 pr-4 border border-pine/15 focus:outline-none focus:border-terracotta placeholder-charcoal/40 transition-colors"
+              id="search-advisories"
+            />
+          </div>
+
+          {/* Status filter tabs/dropdown */}
+          <div className="flex items-center space-x-2 w-full md:w-auto justify-end">
+            <Filter className="h-4 w-4 text-charcoal/50" />
+            <span className="text-xs font-semibold text-charcoal/60 uppercase">Filter:</span>
+            <div className="inline-flex border border-pine/15 p-0.5 bg-cream">
+              {['all', 'open', 'resolved'].map((status) => (
+                <button
+                  key={status}
+                  onClick={() => {
+                    setSearchQuery(''); // Filter overrides active search queries
+                    setStatusFilter(status);
+                  }}
+                  className={`px-3 py-1 text-xs font-medium capitalize transition-all duration-200 ${
+                    statusFilter === status
+                      ? 'bg-pine text-cream'
+                      : 'text-charcoal/70 hover:text-pine hover:bg-cream-dark/35'
+                  }`}
+                >
+                  {status}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Main List Table Area */}
+        <div className="bg-cream border border-pine/15 relative overflow-hidden shadow-sm">
+          {isLoading && <Loader message="Fetching advisory logs..." />}
+          
+          {!isLoading && advisories.length === 0 ? (
+            <div className="text-center py-16 px-4">
+              <Sprout className="h-10 w-10 text-charcoal/20 mx-auto mb-3" />
+              <h3 className="font-serif font-bold text-lg text-pine">No advisories found</h3>
+              <p className="text-sm text-charcoal/60 max-w-sm mx-auto mt-1">
+                Try loosening your search terms or create a new advisory log above.
               </p>
-              
-              {/* Prompt Suggestions */}
-              <div className="text-left space-y-2">
-                <span className="text-[11px] font-semibold text-charcoal/40 uppercase tracking-wider block mb-2">
-                  Suggested Questions:
-                </span>
-                {promptChips.map((chip, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleSendMessage(chip)}
-                    className="w-full text-left p-3 text-xs border border-pine/10 bg-cream/70 hover:border-terracotta hover:bg-cream transition-colors duration-200 block text-charcoal font-medium hover:text-pine"
-                  >
-                    {chip}
-                  </button>
-                ))}
-              </div>
             </div>
           ) : (
-            /* Chat Messages */
-            <div className="space-y-4">
-              {messages.map((msg, index) => (
-                <div
-                  key={index}
-                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[85%] sm:max-w-[75%] p-4 border relative ${
-                      msg.role === 'user'
-                        ? 'bg-pine text-cream border-pine/30'
-                        : 'bg-cream border-pine/15 text-charcoal'
-                    }`}
-                  >
-                    {/* Tiny avatar mark */}
-                    <div className="flex items-center space-x-1.5 mb-2 border-b border-current/10 pb-1 text-[10px] font-semibold opacity-70">
-                      {msg.role === 'user' ? (
-                        <>
-                          <User className="h-3 w-3" />
-                          <span>Field Supervisor</span>
-                        </>
-                      ) : (
-                        <>
-                          <Sprout className="h-3 w-3 text-terracotta" />
-                          <span className="text-pine font-serif">Agri-Allied Advisor</span>
-                        </>
-                      )}
-                    </div>
-                    {/* Message content */}
-                    <p className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap font-sans">
-                      {msg.content}
-                    </p>
-                  </div>
-                </div>
-              ))}
-
-              {/* Server/Network Error UI */}
-              {error && (
-                <div className="p-4 bg-red-50 border border-red-200 text-red-800 text-xs sm:text-sm flex items-start space-x-3">
-                  <ShieldAlert className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
-                  <div className="space-y-1">
-                    <p className="font-bold">Communication Error</p>
-                    <p>{error}</p>
-                    <p className="text-[11px] text-red-700/70 pt-1">
-                      Check that the backend FastAPI server is running at <code>http://localhost:8000</code> and your Gemini API key is configured correctly in <code>/backend/.env</code>.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Typing Indicator */}
-              {isLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-cream border border-pine/15 p-4 text-charcoal/70 flex items-center space-x-2">
-                    <Sprout className="h-4 w-4 animate-bounce text-terracotta" />
-                    <span className="text-xs font-semibold animate-pulse">Consulting advisor database...</span>
-                  </div>
-                </div>
-              )}
-
-              <div ref={messagesEndRef} />
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-pine/10 text-left text-sm font-sans">
+                <thead className="bg-pine text-cream text-xs uppercase tracking-wider">
+                  <tr>
+                    <th scope="col" className="px-6 py-4 font-semibold">Crop</th>
+                    <th scope="col" className="px-6 py-4 font-semibold">Query Summary</th>
+                    <th scope="col" className="px-6 py-4 font-semibold">Date Logged</th>
+                    <th scope="col" className="px-6 py-4 font-semibold">Status</th>
+                    <th scope="col" className="px-6 py-4 font-semibold text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-pine/10 bg-cream">
+                  {advisories.map((adv) => (
+                    <tr 
+                      key={adv.id}
+                      onClick={() => navigate(`/advisories/${adv.id}`)}
+                      className="hover:bg-cream-dark/15 cursor-pointer transition-colors duration-150"
+                    >
+                      <td className="px-6 py-4 font-serif font-bold text-pine whitespace-nowrap">
+                        {adv.crop}
+                      </td>
+                      <td className="px-6 py-4 max-w-md truncate text-charcoal/80">
+                        {adv.query}
+                      </td>
+                      <td className="px-6 py-4 text-charcoal/60 whitespace-nowrap">
+                        {new Date(adv.createdAt).toLocaleDateString('en-IN', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric'
+                        })}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 text-xs font-semibold border ${
+                          adv.status === 'open' 
+                            ? 'bg-amber-500/10 text-amber-800 border-amber-500/30' 
+                            : 'bg-emerald-500/10 text-emerald-800 border-emerald-500/30'
+                        }`}>
+                          {adv.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right whitespace-nowrap">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/advisories/${adv.id}`);
+                          }}
+                          className="inline-flex items-center text-xs font-bold text-terracotta hover:text-terracotta-dark hover:underline space-x-1"
+                        >
+                          <span>Manage</span>
+                          <ArrowRight className="h-3 w-3" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
-
-        {/* Input Bar */}
-        <div className="mt-4 border border-pine/15 bg-cream p-3 flex space-x-2 items-center">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Type your crop or pest question (e.g., 'organic cure for apple scab')..."
-            rows={1}
-            disabled={isLoading}
-            className="flex-grow bg-transparent text-xs sm:text-sm text-charcoal placeholder-charcoal/40 py-2 px-3 border border-pine/10 focus:outline-none focus:border-terracotta resize-none min-h-[40px] max-h-[80px]"
-          />
-          <button
-            onClick={() => handleSendMessage()}
-            disabled={isLoading || !input.trim()}
-            className="p-3 bg-pine hover:bg-pine-light text-cream disabled:bg-pine/40 border border-pine disabled:border-transparent transition-all duration-200 self-end shrink-0"
-            title="Send query"
-          >
-            <Send className="h-4 w-4" />
-          </button>
-        </div>
       </div>
+
+      {/* Add Advisory Modal Form */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 bg-charcoal/60 backdrop-blur-sm">
+          <div className="relative bg-cream w-full max-w-lg border-2 border-pine/30 p-6 sm:p-8 shadow-2xl animate-fade-in">
+            
+            {/* Close button */}
+            <button
+              onClick={() => {
+                setIsModalOpen(false);
+                setFormError('');
+              }}
+              className="absolute top-4 right-4 text-charcoal/50 hover:text-terracotta transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="flex items-center space-x-2 border-b border-pine/10 pb-3 mb-6">
+              <Sprout className="h-5 w-5 text-terracotta" />
+              <h2 className="font-serif font-bold text-xl text-pine">
+                New Advisory Record
+              </h2>
+            </div>
+
+            {formError && (
+              <div className="p-3 bg-red-50 border border-red-200 text-red-800 text-xs font-semibold mb-4">
+                {formError}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateAdvisory} className="space-y-4 font-sans text-sm text-charcoal">
+              
+              <div>
+                <label className="block text-xs font-bold text-charcoal/70 uppercase tracking-wider mb-1.5">
+                  Target Crop
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Munsyari Rajma, Apple, Finger Millet..."
+                  value={formCrop}
+                  onChange={(e) => setFormCrop(e.target.value)}
+                  className="w-full bg-cream border border-pine/15 py-2 px-3 focus:outline-none focus:border-terracotta"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-charcoal/70 uppercase tracking-wider mb-1.5">
+                  Supervisor Question / Symptoms
+                </label>
+                <textarea
+                  required
+                  rows={2}
+                  placeholder="e.g. Brown rot spots on the outer skin, leaf yellowing..."
+                  value={formQuery}
+                  onChange={(e) => setFormQuery(e.target.value)}
+                  className="w-full bg-cream border border-pine/15 py-2 px-3 focus:outline-none focus:border-terracotta resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-charcoal/70 uppercase tracking-wider mb-1.5">
+                  Expert Advice / Recommendation
+                </label>
+                <textarea
+                  required
+                  rows={4}
+                  placeholder="Provide steps for organic treatments, pruning schedules, etc..."
+                  value={formAdvice}
+                  onChange={(e) => setFormAdvice(e.target.value)}
+                  className="w-full bg-cream border border-pine/15 py-2 px-3 focus:outline-none focus:border-terracotta"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-charcoal/70 uppercase tracking-wider mb-1.5">
+                  Initial Status
+                </label>
+                <select
+                  value={formStatus}
+                  onChange={(e) => setFormStatus(e.target.value)}
+                  className="w-full bg-cream border border-pine/15 py-2 px-3 focus:outline-none focus:border-terracotta text-sm"
+                >
+                  <option value="open">Open</option>
+                  <option value="resolved">Resolved</option>
+                </select>
+              </div>
+
+              <div className="flex space-x-3 pt-4 border-t border-pine/10 justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    setFormError('');
+                  }}
+                  className="px-4 py-2 border border-pine/20 hover:bg-cream-dark/20 transition-all font-semibold text-xs text-charcoal"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="px-5 py-2 bg-pine hover:bg-pine-light text-cream font-semibold text-xs border border-pine hover:border-pine-light transition-all shadow-sm"
+                >
+                  Save Record
+                </button>
+              </div>
+            </form>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }

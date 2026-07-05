@@ -8,7 +8,7 @@ export default function Home() {
   const navigate = useNavigate();
 
   const handleCardAction = () => {
-    navigate('/dashboard');
+    navigate('/chat');
   };
 
   // Grid 1: Diagnostic & Advisory Categories

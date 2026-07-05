@@ -35,5 +35,36 @@ Field supervisors can input crop symptoms, pest issues, and post-harvest queries
 │   └── index.html         # SEO titles & meta tags
 └── README.md              # Startup documentation
 ```
-
 ---
+
+## How to run backend locally
+
+1. Navigate to the backend directory:
+   ```bash
+   cd backend
+   ```
+2. Create a virtual environment:
+   ```bash
+   python -m venv venv
+   ```
+3. Activate the virtual environment:
+   - On Windows (PowerShell):
+     ```powershell
+     .\venv\Scripts\activate
+     ```
+   - On Windows (Command Prompt):
+     ```cmd
+     .\venv\Scripts\activate.bat
+     ```
+   - On macOS/Linux:
+     ```bash
+     source venv/bin/activate
+     ```
+4. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+5. Run the FastAPI development server on port 5000:
+   ```bash
+   uvicorn main:app --reload --port 5000
+   ```
