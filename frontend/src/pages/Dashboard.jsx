@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Plus, Filter, FileText, ArrowRight, X, Sprout, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import Loader from '../components/Loader';
 import Toast from '../components/Toast';
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { fetchWithAuth } = useAuth();
   const [advisories, setAdvisories] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -33,7 +35,7 @@ export default function Dashboard() {
         url = `http://localhost:5000/api/advisories/filter?status=${encodeURIComponent(statusFilter)}`;
       }
 
-      const response = await fetch(url);
+      const response = await fetchWithAuth(url);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.detail || `Failed to fetch advisories (Status ${response.status})`);
@@ -76,7 +78,7 @@ export default function Dashboard() {
         status: formStatus
       };
 
-      const response = await fetch('http://localhost:5000/api/advisories', {
+      const response = await fetchWithAuth('http://localhost:5000/api/advisories', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

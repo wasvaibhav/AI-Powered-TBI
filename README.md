@@ -69,16 +69,53 @@ Field supervisors can input crop symptoms, pest issues, and post-harvest queries
    uvicorn main:app --reload --port 5000
    ```
 
-## Database Schema
+---
 
-**Database choice:** MongoDB Atlas (cloud-hosted NoSQL) — chosen because the chatbot stores flexible, document-shaped data (chat messages, AI advisories) that doesn't need rigid relational tables. Beanie ODM gives async support that pairs naturally with FastAPI.
+## Week 5: Authentication & MongoDB Atlas Integration
 
-### Schema Diagram
+We transitioned the platform storage from in-memory arrays to **MongoDB Atlas** using the **Beanie ODM** (Object Document Mapper) and implemented a robust role-based authentication system.
 
-![Agri-Allied Schema Diagram](docs/W5_SchemaDiagram_TBI-26100969.png)
+### 1. Data Models (MongoDB Collections)
 
-**Collections:**
-- **users** — field supervisor accounts (JWT auth, bcrypt-hashed passwords)
-- **advisories** — AI-generated crop advisories, linked to users via `user_id`
-- **chat_history** — per-user chatbot conversations, grouped by `session_id`
-   
+#### User (`users`)
+Exposes safe profile information for supervisor sessions:
+- `id` (ObjectId): Unique identifier.
+- `name` (string): Supervisor's name.
+- `email` (string, unique): Used for authentication.
+- `phone` (string): Contact details (owner-only access).
+- `hashed_password` (string): Hashed password.
+- `created_at` (datetime): Account creation timestamp.
+
+#### Advisory (`advisories`)
+User-linked crop diagnosis and advisory recommendations:
+- `id` (ObjectId): Record identifier.
+- `userId` (string): Link to the owner `User.id`.
+- `crop` (string): Target mountain crop (e.g. apple, beans).
+- `query` (string): Field symptoms or supervisor query.
+- `advice` (string): organic/AI advice recommendations.
+- `status` (string): `"open"` or `"resolved"`.
+- `createdAt` (datetime): Creation timestamp.
+
+#### ChatMessage (`chat_messages`)
+Chronological persistent storage for Gemini-powered organic chats:
+- `id` (ObjectId): Message log identifier.
+- `userId` (string): Link to the owner `User.id`.
+- `role` (string): `"user"` or `"assistant"`.
+- `content` (string): Chat message details.
+- `createdAt` (datetime): Log timestamp.
+
+### 2. Authentication Overview
+
+- **Password Security**: Passwords are never stored as plain-text. They are hashed using **Bcrypt** (`passlib[bcrypt]`) before database insertion.
+- **Session Tokens**: Authenticated routes are protected with **JSON Web Tokens (JWT)** (`python-jose`). Access tokens expire after 24 hours.
+- **Data Isolation**: Route actions (listing, searching, updating, deleting, and logging chats) are automatically locked to the active user's session ID decoded from the JWT token.
+- **Auto-Seeding**: On startup, if no users are registered, the system automatically creates a default test account (`supervisor@agriallied.org` / `password123`) and seeds the 5 Week-4 crop advisories linked directly to it.
+
+### 3. Setup and Secrets
+
+To connect to MongoDB Atlas and sign JWT tokens, add these parameters to your `.env` file in `/backend/`:
+```text
+MONGO_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/agri_allied?retryWrites=true&w=majority
+JWT_SECRET=your_jwt_signing_secret_here
+```
+

@@ -1,17 +1,25 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Sprout, Menu, X, User } from 'lucide-react';
+import { Sprout, Menu, X, User, LogOut } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const { user, logout } = useAuth();
 
+  // Dynamic nav links based on whether user is logged in
   const navLinks = [
     { name: 'Home', path: '/' },
     { name: 'About Us', path: '/about' },
-    { name: 'Dashboard', path: '/dashboard' },
-    { name: 'Advisory Chat', path: '/chat' },
   ];
+
+  if (user) {
+    navLinks.push(
+      { name: 'Dashboard', path: '/dashboard' },
+      { name: 'Advisory Chat', path: '/chat' }
+    );
+  }
 
   const isActive = (path) => location.pathname === path;
 
@@ -44,13 +52,31 @@ export default function Navbar() {
                 </Link>
               ))}
             </div>
-            <Link
-              to="/login"
-              className="flex items-center space-x-1.5 px-4 py-2 border border-terracotta text-cream hover:bg-terracotta/10 hover:border-terracotta-light transition-all duration-200 font-medium text-sm"
-            >
-              <User className="h-4 w-4" />
-              <span>Login</span>
-            </Link>
+
+            {/* Profile / Login Block */}
+            {user ? (
+              <div className="flex items-center space-x-4">
+                <span className="text-xs font-semibold uppercase tracking-wider text-cream/70">
+                  Hi, {user.name.split(' ')[0]}
+                </span>
+                <button
+                  onClick={logout}
+                  className="flex items-center space-x-1.5 px-4 py-2 border border-terracotta bg-terracotta/10 text-cream hover:bg-terracotta hover:border-terracotta-dark transition-all duration-200 font-medium text-sm"
+                  id="logout-btn"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span>Logout</span>
+                </button>
+              </div>
+            ) : (
+              <Link
+                to="/login"
+                className="flex items-center space-x-1.5 px-4 py-2 border border-terracotta text-cream hover:bg-terracotta/10 hover:border-terracotta-light transition-all duration-200 font-medium text-sm"
+              >
+                <User className="h-4 w-4" />
+                <span>Login</span>
+              </Link>
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -86,14 +112,34 @@ export default function Navbar() {
               {link.name}
             </Link>
           ))}
-          <Link
-            to="/login"
-            onClick={() => setIsOpen(false)}
-            className="flex items-center space-x-2 px-3 py-2 mt-2 border-t border-terracotta/10 text-cream font-medium text-base hover:text-terracotta transition-colors duration-200"
-          >
-            <User className="h-5 w-5 text-terracotta" />
-            <span>Supervisor Login</span>
-          </Link>
+
+          {/* Mobile Profile / Login */}
+          {user ? (
+            <div className="border-t border-terracotta/10 pt-2 mt-2 space-y-1">
+              <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-cream/60">
+                Hi, {user.name}
+              </div>
+              <button
+                onClick={() => {
+                  logout();
+                  setIsOpen(false);
+                }}
+                className="w-full text-left flex items-center space-x-2 px-3 py-2 text-cream font-medium text-base hover:text-terracotta transition-colors duration-200"
+              >
+                <LogOut className="h-5 w-5 text-terracotta" />
+                <span>Logout</span>
+              </button>
+            </div>
+          ) : (
+            <Link
+              to="/login"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center space-x-2 px-3 py-2 mt-2 border-t border-terracotta/10 text-cream font-medium text-base hover:text-terracotta transition-colors duration-200"
+            >
+              <User className="h-5 w-5 text-terracotta" />
+              <span>Supervisor Login</span>
+            </Link>
+          )}
         </div>
       </div>
     </nav>

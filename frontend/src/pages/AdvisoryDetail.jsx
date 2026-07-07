@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Edit2, Trash2, CheckCircle2, AlertCircle, Calendar, Sprout, Save, X } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import Loader from '../components/Loader';
 import Toast from '../components/Toast';
 
 export default function AdvisoryDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { fetchWithAuth } = useAuth();
   
   const [advisory, setAdvisory] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -25,7 +27,7 @@ export default function AdvisoryDetail() {
     setIsLoading(true);
     setErrorMessage('');
     try {
-      const response = await fetch(`http://localhost:5000/api/advisories/${id}`);
+      const response = await fetchWithAuth(`http://localhost:5000/api/advisories/${id}`);
       if (!response.ok) {
         if (response.status === 404) {
           throw new Error('Advisory record not found.');
@@ -72,7 +74,7 @@ export default function AdvisoryDetail() {
         status: editStatus
       };
 
-      const response = await fetch(`http://localhost:5000/api/advisories/${id}`, {
+      const response = await fetchWithAuth(`http://localhost:5000/api/advisories/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -106,7 +108,7 @@ export default function AdvisoryDetail() {
     setIsLoading(true);
     setErrorMessage('');
     try {
-      const response = await fetch(`http://localhost:5000/api/advisories/${id}`, {
+      const response = await fetchWithAuth(`http://localhost:5000/api/advisories/${id}`, {
         method: 'DELETE',
       });
 

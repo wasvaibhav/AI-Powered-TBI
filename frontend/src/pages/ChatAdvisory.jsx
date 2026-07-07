@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Sprout, User, ShieldAlert, Sparkles, RefreshCw, AlertTriangle } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import Loader from '../components/Loader';
 import Toast from '../components/Toast';
 
 export default function ChatAdvisory() {
+  const { fetchWithAuth } = useAuth();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -27,6 +29,29 @@ export default function ChatAdvisory() {
     scrollToBottom();
   }, [messages, isLoading]);
 
+  // Load chat history on mount
+  useEffect(() => {
+    const loadChatHistory = async () => {
+      setIsLoading(true);
+      setError('');
+      try {
+        const response = await fetchWithAuth('http://localhost:5000/api/chat/history');
+        if (response.ok) {
+          const data = await response.json();
+          setMessages(data);
+        } else {
+          const errorData = await response.json().catch(() => ({}));
+          console.error("Failed to load chat history:", errorData.detail);
+        }
+      } catch (err) {
+        console.error("Network error loading chat history:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadChatHistory();
+  }, []);
+
   const handleSendMessage = async (textToSend) => {
     const text = textToSend || input.trim();
     if (!text) return;
@@ -43,8 +68,8 @@ export default function ChatAdvisory() {
     setIsLoading(true);
 
     try {
-      // Send chat history to backend API running on port 5000
-      const response = await fetch('http://localhost:5000/api/chat', {
+      // Send chat history to backend API running on port 5000 with Auth
+      const response = await fetchWithAuth('http://localhost:5000/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

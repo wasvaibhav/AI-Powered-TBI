@@ -1,22 +1,131 @@
-from pydantic import BaseModel, Field
-from typing import Literal, Optional
 from datetime import datetime
+from typing import Literal, Optional, List
+from beanie import Document, Indexed
+from pydantic import BaseModel, Field, EmailStr
 
-class AdvisoryBase(BaseModel):
-    query: str = Field(..., min_length=1, description="The supervisor's question, e.g., 'Yellow spots on beans'")
-    crop: str = Field(..., min_length=1, description="The crop name, e.g., 'Beans'")
-    advice: str = Field(..., min_length=1, description="The expert/AI advice text")
-    status: Literal["open", "resolved"] = Field("open", description="Advisory status")
+# ==================== BEANIE DOCUMENT SCHEMAS ====================
 
-class AdvisoryCreate(AdvisoryBase):
-    pass
+class User(Document):
+    name: str
+    email: Indexed(EmailStr, unique=True)
+    phone: str
+    hashed_password: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    class Settings:
+        name = "users"
+
+
+class Advisory(Document):
+    userId: str  # Owner's user ID string
+    query: str
+    crop: str
+    advice: str
+    status: Literal["open", "resolved"] = "open"
+    createdAt: datetime = Field(default_factory=datetime.utcnow)
+
+    class Settings:
+        name = "advisories"
+
+
+class ChatMessage(Document):
+    userId: str  # Owner's user ID string
+    role: Literal["user", "assistant"]
+    content: str
+    createdAt: datetime = Field(default_factory=datetime.utcnow)
+
+    class Settings:
+        name = "chat_messages"
+
+
+# ==================== PYDANTIC TRANSFER SCHEMAS ====================
+
+class AdvisoryCreate(BaseModel):
+    """Request body for creating a new advisory."""
+    crop: str = Field(..., min_length=1, description="Crop name")
+    query: str = Field(..., min_length=1, description="Field observation or question")
+    advice: str = Field(..., min_length=1, description="Advisory recommendation text")
+    status: Literal["open", "resolved"] = "open"
+
 
 class AdvisoryUpdate(BaseModel):
-    query: Optional[str] = Field(None, min_length=1)
-    crop: Optional[str] = Field(None, min_length=1)
-    advice: Optional[str] = Field(None, min_length=1)
+    """Request body for partially updating an advisory (all fields optional)."""
+    crop: Optional[str] = None
+    query: Optional[str] = None
+    advice: Optional[str] = None
     status: Optional[Literal["open", "resolved"]] = None
 
-class Advisory(AdvisoryBase):
-    id: str = Field(..., description="UUID as a string")
-    createdAt: datetime = Field(..., description="ISO 8601 creation timestamp")
+
+class SignupRequest(BaseModel):
+    name: str = Field(..., min_length=1, description="Supervisor's full name")
+    email: EmailStr = Field(..., description="Unique email address")
+    phone: str = Field(..., min_length=10, description="Phone number")
+    password: str = Field(..., min_length=6, description="Password (min 6 characters)")
+
+
+class LoginRequest(BaseModel):
+    email: EmailStr = Field(..., description="Login email")
+    password: str = Field(..., description="Account password")
+
+
+class UserResponse(BaseModel):
+    id: str
+    name: str
+    email: EmailStr
+    phone: str
+    createdAt: datetime
+
+    @classmethod
+    def from_mongo(cls, user: User) -> "UserResponse":
+        return cls(
+            id=str(user.id),
+            name=user.name,
+            email=user.email,
+            phone=user.phone,
+            createdAt=user.created_at
+        )
+
+
+class AdvisoryResponse(BaseModel):
+    id: str
+    userId: str
+    query: str
+    crop: str
+    advice: str
+    status: Literal["open", "resolved"]
+    createdAt: datetime
+
+    @classmethod
+    def from_mongo(cls, adv: Advisory) -> "AdvisoryResponse":
+        return cls(
+            id=str(adv.id),
+            userId=adv.userId,
+            query=adv.query,
+            crop=adv.crop,
+            advice=adv.advice,
+            status=adv.status,
+            createdAt=adv.createdAt
+        )
+
+
+class ChatMessageResponse(BaseModel):
+    id: str
+    userId: str
+    role: Literal["user", "assistant"]
+    content: str
+    createdAt: datetime
+
+    @classmethod
+    def from_mongo(cls, msg: ChatMessage) -> "ChatMessageResponse":
+        return cls(
+            id=str(msg.id),
+            userId=msg.userId,
+            role=msg.role,
+            content=msg.content,
+            createdAt=msg.createdAt
+        )
+
+
+class TokenResponse(BaseModel):
+    user: UserResponse
+    token: str
