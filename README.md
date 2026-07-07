@@ -68,3 +68,17 @@ Field supervisors can input crop symptoms, pest issues, and post-harvest queries
    ```bash
    uvicorn main:app --reload --port 5000
    ```
+
+## Database Schema
+
+**Database choice:** MongoDB Atlas (cloud-hosted NoSQL) — chosen because the chatbot stores flexible, document-shaped data (chat messages, AI advisories) that doesn't need rigid relational tables. Beanie ODM gives async support that pairs naturally with FastAPI.
+
+### Schema Diagram
+
+![Agri-Allied Schema Diagram](docs/W5_SchemaDiagram_TBI-26100969.png)
+
+**Collections:**
+- **users** — field supervisor accounts (JWT auth, bcrypt-hashed passwords)
+- **advisories** — AI-generated crop advisories, linked to users via `user_id`
+- **chat_history** — per-user chatbot conversations, grouped by `session_id`
+   
