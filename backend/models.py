@@ -1,15 +1,17 @@
+import re
 from datetime import datetime
 from typing import Literal, Optional, List
 from beanie import Document, Indexed
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, field_validator
 
 # ==================== BEANIE DOCUMENT SCHEMAS ====================
 
 class User(Document):
     name: str
     email: Indexed(EmailStr, unique=True)
-    phone: str
-    hashed_password: str
+    phone: Optional[str] = None
+    hashed_password: Optional[str] = None  # None for OAuth users
+    provider: str = "local"  # "local" | "google"
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Settings:
@@ -38,6 +40,17 @@ class ChatMessage(Document):
         name = "chat_messages"
 
 
+class PasswordResetToken(Document):
+    """Stores a hashed password-reset token tied to a user email."""
+    email: str
+    token_hash: str  # sha256 of the raw token sent to the user
+    expires_at: datetime
+    used: bool = False
+
+    class Settings:
+        name = "password_reset_tokens"
+
+
 # ==================== PYDANTIC TRANSFER SCHEMAS ====================
 
 class AdvisoryCreate(BaseModel):
@@ -60,7 +73,20 @@ class SignupRequest(BaseModel):
     name: str = Field(..., min_length=1, description="Supervisor's full name")
     email: EmailStr = Field(..., description="Unique email address")
     phone: str = Field(..., min_length=10, description="Phone number")
-    password: str = Field(..., min_length=6, description="Password (min 6 characters)")
+    password: str = Field(
+        ...,
+        min_length=8,
+        description="Password — min 8 characters, must contain at least one letter and one number"
+    )
+
+    @field_validator("password")
+    @classmethod
+    def password_strength(cls, v: str) -> str:
+        if not re.search(r"[A-Za-z]", v):
+            raise ValueError("Password must contain at least one letter.")
+        if not re.search(r"[0-9]", v):
+            raise ValueError("Password must contain at least one number.")
+        return v
 
 
 class LoginRequest(BaseModel):
@@ -72,7 +98,7 @@ class UserResponse(BaseModel):
     id: str
     name: str
     email: EmailStr
-    phone: str
+    phone: Optional[str] = None
     createdAt: datetime
 
     @classmethod
@@ -129,3 +155,25 @@ class ChatMessageResponse(BaseModel):
 class TokenResponse(BaseModel):
     user: UserResponse
     token: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr = Field(..., description="Email address to send reset link to")
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(..., description="Reset token from email")
+    new_password: str = Field(
+        ...,
+        min_length=8,
+        description="New password — min 8 characters, must contain at least one letter and one number"
+    )
+
+    @field_validator("new_password")
+    @classmethod
+    def password_strength(cls, v: str) -> str:
+        if not re.search(r"[A-Za-z]", v):
+            raise ValueError("Password must contain at least one letter.")
+        if not re.search(r"[0-9]", v):
+            raise ValueError("Password must contain at least one number.")
+        return v

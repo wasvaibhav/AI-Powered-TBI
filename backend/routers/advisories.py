@@ -1,3 +1,5 @@
+import re
+from beanie.operators import Or, RegEx
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from typing import List, Literal
 from bson import ObjectId
@@ -19,13 +21,16 @@ async def search_advisories(
         # If query is empty, return all user's advisories
         advisories = await Advisory.find(Advisory.userId == str(current_user.id)).sort(-Advisory.createdAt).to_list()
     else:
-        # Case-insensitive regex match in crop, query, or advice fields
-        pattern = f"(?i){q_clean}"
+        # Case-insensitive regex match in crop, query, or advice fields.
+        # re.escape prevents user input from being interpreted as a regex pattern.
+        pattern = re.escape(q_clean)
         advisories = await Advisory.find(
             Advisory.userId == str(current_user.id),
-            (Advisory.crop == {"$regex": pattern}) |
-            (Advisory.query == {"$regex": pattern}) |
-            (Advisory.advice == {"$regex": pattern})
+            Or(
+                RegEx(Advisory.crop, pattern, "i"),
+                RegEx(Advisory.query, pattern, "i"),
+                RegEx(Advisory.advice, pattern, "i"),
+            )
         ).sort(-Advisory.createdAt).to_list()
 
     return [AdvisoryResponse.from_mongo(adv) for adv in advisories]
