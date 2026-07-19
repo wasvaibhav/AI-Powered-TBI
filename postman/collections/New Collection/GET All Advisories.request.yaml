@@ -2,4 +2,4 @@ $kind: http-request
 name: GET All Advisories
 url: http://127.0.0.1:5000/api/advisories
 method: GET
-order: 4459926019562132
+order: 4503566930117904

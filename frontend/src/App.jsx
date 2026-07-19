@@ -10,6 +10,9 @@ import ChatAdvisory from './pages/ChatAdvisory';
 import AdvisoryDetail from './pages/AdvisoryDetail';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import OAuthCallback from './pages/OAuthCallback';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import Loader from './components/Loader';
 
 // Protected Route wrapper component
@@ -45,6 +48,9 @@ function App() {
               <Route path="/about" element={<About />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
+              <Route path="/oauth-callback" element={<OAuthCallback />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
 
               {/* Protected Routes */}
               <Route 

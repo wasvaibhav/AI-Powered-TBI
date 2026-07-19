@@ -1,4 +1,8 @@
 $kind: http-request
-url: ""
-method: GET
-order: 4492650093138937
+name: PUT Update Advisory
+url: http://127.0.0.1:5000/api/advisories/6a5ccd46b98a7cd20e68bf9f
+method: PUT
+body:
+  type: json
+  content: "{\r\n  \"status\": \"resolved\"\r\n}"
+order: 4503566918843582

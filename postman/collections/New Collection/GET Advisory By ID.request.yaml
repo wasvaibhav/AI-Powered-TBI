@@ -1,4 +1,8 @@
 $kind: http-request
-url: ""
+name: GET Advisory By ID
+url: http://127.0.0.1:5000/api/advisories/6a5ccd46b98a7cd20e68bf9f
 method: GET
-order: 4503470767039968
+body:
+  type: json
+  content: ""
+order: 4503566487220534

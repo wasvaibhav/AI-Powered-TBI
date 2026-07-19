@@ -1,4 +1,19 @@
 $kind: http-request
-url: ""
-method: GET
-order: 4503442491139255
+name: POST Create Advisory
+url: http://127.0.0.1:5000/api/advisories
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \  \"crop\": \"Mandua (Finger Millet)\",\r
+
+    \  \"query\": \"White mold patches appearing during storage\",\r
+
+    \  \"advice\": \"Sun-dry grains below 12% moisture and store in airtight
+    bins with neem leaves.\",\r
+
+    \  \"status\": \"open\"\r
+
+    }"
+order: 4503566004237542

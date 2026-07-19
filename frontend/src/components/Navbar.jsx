@@ -1,12 +1,18 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Sprout, Menu, X, User, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   // Dynamic nav links based on whether user is logged in
   const navLinks = [
@@ -60,7 +66,7 @@ export default function Navbar() {
                   Hi, {user.name.split(' ')[0]}
                 </span>
                 <button
-                  onClick={logout}
+                  onClick={handleLogout}
                   className="flex items-center space-x-1.5 px-4 py-2 border border-terracotta bg-terracotta/10 text-cream hover:bg-terracotta hover:border-terracotta-dark transition-all duration-200 font-medium text-sm"
                   id="logout-btn"
                 >
@@ -121,7 +127,7 @@ export default function Navbar() {
               </div>
               <button
                 onClick={() => {
-                  logout();
+                  handleLogout();
                   setIsOpen(false);
                 }}
                 className="w-full text-left flex items-center space-x-2 px-3 py-2 text-cream font-medium text-base hover:text-terracotta transition-colors duration-200"

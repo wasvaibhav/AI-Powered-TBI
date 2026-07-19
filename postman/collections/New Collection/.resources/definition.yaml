@@ -1,2 +1,10 @@
 $kind: collection
 name: New Collection
+variables:
+  jwt_token: ""
+auth:
+  - id: 32b4ad5d-1e20-46c4-9cdd-6aafa6159c46
+    type: bearer
+    name: Bearer Token
+    credentials:
+      token: "{{jwt_token}}"

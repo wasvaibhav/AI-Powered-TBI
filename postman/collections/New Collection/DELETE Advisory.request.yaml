@@ -1,4 +1,5 @@
 $kind: http-request
-url: http://127.0.0.1:5000/api/advisories/3292d6d0-14c3-40e5-a6fa-3448cd71934b
+name: DELETE Advisory
+url: http://127.0.0.1:5000/api/advisories/6a5ccd46b98a7cd20e68bf9f
 method: DELETE
-order: 1783259751554
+order: 4503566929814267
